@@ -1,0 +1,1 @@
+Sudoku Buddy allows you solve sudoku puzzles faster than others (in particular, my girlfriend).
