@@ -41,6 +41,8 @@ func (a *authService) SignIn(email, password string) (string, error) {
 	go func(ch chan<- bool) {
 		db, err = database.DBService.Connect(config.DBDRIVER, config.DBURL)
 
+		defer db.Close()
+
 		if err != nil {
 			ch <- false
 			return
@@ -61,7 +63,6 @@ func (a *authService) SignIn(email, password string) (string, error) {
 		}
 
 		ch <- true
-		close(ch)
 	}(done)
 
 	if channels.OK(done) {

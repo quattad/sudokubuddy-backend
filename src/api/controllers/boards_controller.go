@@ -35,7 +35,6 @@ func GetBoard(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusBadRequest, err)
-		return
 	}
 
 	// Fetch user ID from request body
@@ -43,7 +42,6 @@ func GetBoard(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusUnauthorized, err)
-		return
 	}
 
 	// Connect to db
@@ -51,8 +49,9 @@ func GetBoard(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusInternalServerError, err)
-		return
 	}
+
+	defer db.Close()
 
 	repo := crud.BoardsCRUDService.NewBoardsCRUD(db)
 
@@ -60,7 +59,6 @@ func GetBoard(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusBadRequest, err)
-		return
 	}
 
 	// Search board.PuzzleID to retrieve corresponding puzzle and check
@@ -95,21 +93,18 @@ func GetBoardsByPuzzleIDRowCol(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusBadRequest, err)
-		return
 	}
 
 	boardRow, err := strconv.ParseUint(routeVariables["board_row"], 10, 32)
 
 	if err != nil {
 		responses.ERROR(w, http.StatusBadRequest, err)
-		return
 	}
 
 	boardCol, err := strconv.ParseUint(routeVariables["board_col"], 10, 32)
 
 	if err != nil {
 		responses.ERROR(w, http.StatusBadRequest, err)
-		return
 	}
 
 	// Fetch user ID from request body
@@ -117,7 +112,6 @@ func GetBoardsByPuzzleIDRowCol(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusUnauthorized, err)
-		return
 	}
 
 	// Connect to db
@@ -125,8 +119,9 @@ func GetBoardsByPuzzleIDRowCol(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusInternalServerError, err)
-		return
 	}
+
+	defer db.Close()
 
 	repo := crud.BoardsCRUDService.NewBoardsCRUD(db)
 
@@ -134,7 +129,6 @@ func GetBoardsByPuzzleIDRowCol(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusBadRequest, err)
-		return
 	}
 
 	// Search board.PuzzleID to retrieve corresponding puzzle and check
@@ -167,7 +161,6 @@ func GetBoards(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusUnauthorized, err)
-		return
 	}
 
 	// Connect to db
@@ -175,15 +168,15 @@ func GetBoards(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusInternalServerError, err)
-		return
 	}
+
+	defer db.Close()
 
 	repo := crud.BoardsCRUDService.NewBoardsCRUD(db)
 	boards, err := repo.FindAll(uid)
 
 	if err != nil {
 		responses.ERROR(w, http.StatusBadRequest, err)
-		return
 	}
 
 	responses.JSON(w, http.StatusOK, boards)
@@ -230,7 +223,6 @@ func CreateBoard(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusUnprocessableEntity, err)
-		return
 	}
 
 	// Connect to DB
@@ -238,8 +230,9 @@ func CreateBoard(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusInternalServerError, err)
-		return
 	}
+
+	defer db.Close()
 
 	// Create new repository
 	repo := crud.BoardsCRUDService.NewBoardsCRUD(db)
@@ -248,7 +241,6 @@ func CreateBoard(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusUnprocessableEntity, err)
-		return
 	}
 
 	w.Header().Set("Location", fmt.Sprintf("%s%s/%d", r.Host, r.RequestURI, board.ID))
@@ -341,6 +333,11 @@ func UpdateBoard(w http.ResponseWriter, r *http.Request) {
 
 	// Connect to database
 	db, err := database.DBService.Connect(config.DBDRIVER, config.DBURL)
+
+	if err != nil {
+		responses.ERROR(w, http.StatusInternalServerError, err)
+	}
+
 	defer db.Close()
 
 	// Execute search
@@ -372,11 +369,12 @@ func DeleteBoard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	db, err := database.DBService.Connect(config.DBDRIVER, config.DBURL)
-	defer db.Close()
 
 	if err != nil {
 		responses.ERROR(w, http.StatusInternalServerError, err)
 	}
+
+	defer db.Close()
 
 	// tokenUID, err := auth.TokenService.ExtractTokenID(r)
 

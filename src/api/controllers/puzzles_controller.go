@@ -34,7 +34,6 @@ func GetPuzzle(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusBadRequest, err)
-		return
 	}
 
 	// Fetch user ID from request body
@@ -42,7 +41,6 @@ func GetPuzzle(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusUnauthorized, err)
-		return
 	}
 
 	// Connect to db
@@ -50,8 +48,9 @@ func GetPuzzle(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusInternalServerError, err)
-		return
 	}
+
+	defer db.Close()
 
 	repo := crud.PuzzlesCRUDService.NewPuzzlesCRUD(db)
 
@@ -59,7 +58,6 @@ func GetPuzzle(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusBadRequest, err)
-		return
 	}
 
 	responses.JSON(w, http.StatusOK, puzzle)
@@ -81,7 +79,6 @@ func GetPuzzles(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusUnauthorized, err)
-		return
 	}
 
 	// Connect to db
@@ -89,8 +86,9 @@ func GetPuzzles(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusInternalServerError, err)
-		return
 	}
+
+	defer db.Close()
 
 	repo := crud.PuzzlesCRUDService.NewPuzzlesCRUD(db)
 
@@ -98,7 +96,6 @@ func GetPuzzles(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusBadRequest, err)
-		return
 	}
 
 	responses.JSON(w, http.StatusOK, puzzles)
@@ -116,7 +113,6 @@ func CreatePuzzle(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusUnprocessableEntity, err)
-		return
 	}
 
 	// Unmarshal body
@@ -124,14 +120,12 @@ func CreatePuzzle(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusUnprocessableEntity, err)
-		return
 	}
 
 	uid, err := auth.TokenService.ExtractTokenID(r)
 
 	if err != nil {
 		responses.ERROR(w, http.StatusUnauthorized, err)
-		return
 	}
 
 	puzzle.UserID = uid
@@ -147,7 +141,6 @@ func CreatePuzzle(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusUnprocessableEntity, err)
-		return
 	}
 
 	// Connect to DB
@@ -155,8 +148,9 @@ func CreatePuzzle(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusInternalServerError, err)
-		return
 	}
+
+	defer db.Close()
 
 	// Create new repository
 	repo := crud.PuzzlesCRUDService.NewPuzzlesCRUD(db)
@@ -165,7 +159,6 @@ func CreatePuzzle(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusUnprocessableEntity, err)
-		return
 	}
 
 	w.Header().Set("Location", fmt.Sprintf("%s%s/%d", r.Host, r.RequestURI, puzzle.ID))
@@ -219,6 +212,11 @@ func UpdatePuzzle(w http.ResponseWriter, r *http.Request) {
 
 	// Connect to database
 	db, err := database.DBService.Connect(config.DBDRIVER, config.DBURL)
+
+	if err != nil {
+		responses.ERROR(w, http.StatusInternalServerError, err)
+	}
+
 	defer db.Close()
 
 	// Execute search
@@ -250,11 +248,12 @@ func DeletePuzzle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	db, err := database.DBService.Connect(config.DBDRIVER, config.DBURL)
-	defer db.Close()
 
 	if err != nil {
 		responses.ERROR(w, http.StatusInternalServerError, err)
 	}
+
+	defer db.Close()
 
 	tokenUID, err := auth.TokenService.ExtractTokenID(r)
 

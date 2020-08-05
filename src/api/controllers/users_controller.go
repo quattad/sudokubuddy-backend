@@ -31,7 +31,6 @@ func GetUser(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusBadRequest, err)
-		return
 	}
 
 	// Connect to db
@@ -39,8 +38,9 @@ func GetUser(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusInternalServerError, err)
-		return
 	}
+
+	defer db.Close()
 
 	repo := crud.UsersCRUDService.NewUsersCRUD(db)
 
@@ -48,7 +48,6 @@ func GetUser(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusBadRequest, err)
-		return
 	}
 
 	responses.JSON(w, http.StatusOK, user)
@@ -68,8 +67,9 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusInternalServerError, err)
-		return
 	}
+
+	defer db.Close()
 
 	repo := crud.UsersCRUDService.NewUsersCRUD(db)
 
@@ -77,7 +77,6 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusUnprocessableEntity, err)
-		return
 	}
 
 	responses.JSON(w, http.StatusOK, users)
@@ -95,7 +94,6 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusUnprocessableEntity, err)
-		return
 	}
 
 	// Unmarshal body
@@ -107,7 +105,6 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusUnprocessableEntity, err)
-		return
 	}
 
 	// Connect to DB
@@ -115,8 +112,9 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusInternalServerError, err)
-		return
 	}
+
+	defer db.Close()
 
 	// Create new repository
 	repo := crud.UsersCRUDService.NewUsersCRUD(db)
@@ -125,7 +123,6 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusUnprocessableEntity, err)
-		return
 	}
 
 	w.Header().Set("Location", fmt.Sprintf("%s%s/%d", r.Host, r.RequestURI, user.ID))
@@ -146,14 +143,12 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusBadRequest, err)
-		return
 	}
 
 	body, err := ioutil.ReadAll(r.Body) // read from request body
 
 	if err != nil {
 		responses.ERROR(w, http.StatusUnprocessableEntity, err)
-		return
 	}
 
 	user := models.User{}
@@ -161,27 +156,24 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusUnprocessableEntity, err)
-		return
 	}
 
 	db, err := database.DBService.Connect(config.DBDRIVER, config.DBURL)
-	defer db.Close()
 
 	if err != nil {
 		responses.ERROR(w, http.StatusInternalServerError, err)
-		return
 	}
+
+	defer db.Close()
 
 	tokenUID, err := auth.TokenService.ExtractTokenID(r)
 
 	if err != nil {
 		responses.ERROR(w, http.StatusUnauthorized, err)
-		return
 	}
 
 	if tokenUID != uint32(uid) {
 		responses.ERROR(w, http.StatusUnauthorized, err)
-		return
 	}
 
 	repo := crud.UsersCRUDService.NewUsersCRUD(db)
@@ -190,7 +182,6 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusBadRequest, err)
-		return
 	}
 
 	responses.JSON(w, http.StatusOK, rows)
@@ -211,7 +202,6 @@ func DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusBadRequest, err)
-		return
 	}
 
 	db, err := database.DBService.Connect(config.DBDRIVER, config.DBURL)
@@ -219,19 +209,16 @@ func DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusInternalServerError, err)
-		return
 	}
 
 	tokenUID, err := auth.TokenService.ExtractTokenID(r)
 
 	if err != nil {
 		responses.ERROR(w, http.StatusUnauthorized, err)
-		return
 	}
 
 	if tokenUID != uint32(uid) {
 		responses.ERROR(w, http.StatusUnauthorized, err)
-		return
 	}
 
 	repo := crud.UsersCRUDService.NewUsersCRUD(db)
@@ -240,7 +227,6 @@ func DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		responses.ERROR(w, http.StatusBadRequest, err)
-		return
 	}
 
 	responses.JSON(w, http.StatusOK, rows)
