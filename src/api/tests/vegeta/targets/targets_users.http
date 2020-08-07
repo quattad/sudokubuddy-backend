@@ -1,2 +1,8 @@
-GET http://localhost:8000/users
-GET http://localhost:8000/users/1
+GET http://localhost:8000/boards?puzzle_id=1&board_row=2&board_col=4
+Authorization:Token eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdXRob3JpemVkIjp0cnVlLCJleHAiOjE1OTY3OTUzODcsInVzZXJfaWQiOjF9.QTEuH1oxcxjjmbosup8rMywmZvDJQqf7PIJOQ_A2WdY
+
+GET http://localhost:8000/boards?puzzle_id=2&board_row=9&board_col=9
+Authorization:Token eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdXRob3JpemVkIjp0cnVlLCJleHAiOjE1OTY3OTUzODcsInVzZXJfaWQiOjF9.QTEuH1oxcxjjmbosup8rMywmZvDJQqf7PIJOQ_A2WdY
+
+GET http://localhost:8000/boards?puzzle_id=1&board_row=6&board_col=6
+Authorization:Token eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdXRob3JpemVkIjp0cnVlLCJleHAiOjE1OTY3OTUzODcsInVzZXJfaWQiOjF9.QTEuH1oxcxjjmbosup8rMywmZvDJQqf7PIJOQ_A2WdY

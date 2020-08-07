@@ -1,0 +1,26 @@
+// USERS
+GET http://localhost:8000/users
+GET http://localhost:8000/users/1
+
+// PUZZLES
+GET http://johndoe:123456@localhost:8000/puzzles
+Authorization:Token eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdXRob3JpemVkIjp0cnVlLCJleHAiOjE1OTY3ODM0NjYsInVzZXJfaWQiOjF9.i8tcCEUqx62awSgpxCd8OeqOoDZKnIHd_siKFCElq6g
+
+// BOARDS
+// GetBoardByID
+GET http://localhost:8000/boards/1
+Authorization:Token <token>
+
+GET http://localhost:8000/boards/54
+Authorization:Token <token>
+
+GET http://localhost:8000/boards/76
+Authorization:Token <token>
+
+// GetBoards
+GET http://localhost:8000/boards
+Authorization:Token <token>
+
+// GetBoards with puzzle_id, board_row, board_col
+GET http://localhost:8000/boards?puzzle_id=1&board_row=2&board_col=4
+Authorization:Token <token>
