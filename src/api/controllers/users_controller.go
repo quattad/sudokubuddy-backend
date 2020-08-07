@@ -8,7 +8,9 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
+	"github.com/patrickmn/go-cache"
 	"github.com/quattad/sudokubuddy-backend/src/api/auth"
+	"github.com/quattad/sudokubuddy-backend/src/api/caching"
 	"github.com/quattad/sudokubuddy-backend/src/api/config"
 	"github.com/quattad/sudokubuddy-backend/src/api/crud"
 	"github.com/quattad/sudokubuddy-backend/src/api/database"
@@ -33,24 +35,48 @@ func GetUser(w http.ResponseWriter, r *http.Request) {
 		responses.ERROR(w, http.StatusBadRequest, err)
 	}
 
-	// Connect to db
-	db, err := database.DBService.Connect(config.DBDRIVER, config.DBURL)
+	if it, found := caching.Cache.Get("users/" + strconv.Itoa(int(uid))); found {
 
-	if err != nil {
-		responses.ERROR(w, http.StatusInternalServerError, err)
+		user := models.User{}
+
+		err = json.Unmarshal(it.([]byte), &user)
+
+		if err != nil {
+			responses.ERROR(w, http.StatusInternalServerError, err)
+		}
+
+		responses.JSON(w, http.StatusOK, err)
+
+	} else {
+
+		// Connect to db
+		db, err := database.DBService.Connect(config.DBDRIVER, config.DBURL)
+
+		if err != nil {
+			responses.ERROR(w, http.StatusInternalServerError, err)
+		}
+
+		defer db.Close()
+
+		repo := crud.UsersCRUDService.NewUsersCRUD(db)
+
+		user, err := repo.FindByID(uint32(uid))
+
+		if err != nil {
+			responses.ERROR(w, http.StatusBadRequest, err)
+		}
+
+		b, err := json.Marshal(user)
+
+		if err != nil {
+			responses.ERROR(w, http.StatusInternalServerError, err)
+		}
+
+		// GOCACHE
+		caching.Cache.Set("users/"+strconv.Itoa(int(uid)), b, cache.DefaultExpiration)
+
+		responses.JSON(w, http.StatusOK, user)
 	}
-
-	defer db.Close()
-
-	repo := crud.UsersCRUDService.NewUsersCRUD(db)
-
-	user, err := repo.FindByID(uint32(uid))
-
-	if err != nil {
-		responses.ERROR(w, http.StatusBadRequest, err)
-	}
-
-	responses.JSON(w, http.StatusOK, user)
 
 }
 
@@ -62,24 +88,47 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 		3. Execute FindAl(), return status code 422 if err. Return status 200 and retrieved []models.User if successful.
 	*/
 
-	// Connect to db
-	db, err := database.DBService.Connect(config.DBDRIVER, config.DBURL)
+	if it, found := caching.Cache.Get("users/all"); found {
 
-	if err != nil {
-		responses.ERROR(w, http.StatusInternalServerError, err)
+		var users []models.User
+		err := json.Unmarshal(it.([]byte), &users)
+
+		if err != nil {
+			responses.ERROR(w, http.StatusInternalServerError, err)
+		}
+
+		responses.JSON(w, http.StatusOK, users)
+
+	} else {
+
+		// Connect to db
+		db, err := database.DBService.Connect(config.DBDRIVER, config.DBURL)
+
+		if err != nil {
+			responses.ERROR(w, http.StatusInternalServerError, err)
+		}
+
+		defer db.Close()
+
+		repo := crud.UsersCRUDService.NewUsersCRUD(db)
+
+		users, err := repo.FindAll()
+
+		if err != nil {
+			responses.ERROR(w, http.StatusUnprocessableEntity, err)
+		}
+
+		b, err := json.Marshal(users)
+
+		if err != nil {
+			responses.ERROR(w, http.StatusInternalServerError, err)
+		}
+
+		// GOCACHE
+		caching.Cache.Set("users/all", b, cache.DefaultExpiration)
+
+		responses.JSON(w, http.StatusOK, users)
 	}
-
-	defer db.Close()
-
-	repo := crud.UsersCRUDService.NewUsersCRUD(db)
-
-	users, err := repo.FindAll()
-
-	if err != nil {
-		responses.ERROR(w, http.StatusUnprocessableEntity, err)
-	}
-
-	responses.JSON(w, http.StatusOK, users)
 }
 
 // CreateUser creates a user in the User resource

@@ -8,7 +8,9 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
+	"github.com/patrickmn/go-cache"
 	"github.com/quattad/sudokubuddy-backend/src/api/auth"
+	"github.com/quattad/sudokubuddy-backend/src/api/caching"
 	"github.com/quattad/sudokubuddy-backend/src/api/config"
 	"github.com/quattad/sudokubuddy-backend/src/api/crud"
 	"github.com/quattad/sudokubuddy-backend/src/api/database"
@@ -43,24 +45,48 @@ func GetPuzzle(w http.ResponseWriter, r *http.Request) {
 		responses.ERROR(w, http.StatusUnauthorized, err)
 	}
 
-	// Connect to db
-	db, err := database.DBService.Connect(config.DBDRIVER, config.DBURL)
+	if it, found := caching.Cache.Get("puzzles/" + strconv.Itoa(int(pid))); found {
 
-	if err != nil {
-		responses.ERROR(w, http.StatusInternalServerError, err)
+		puzzle := models.Puzzle{}
+
+		err = json.Unmarshal(it.([]byte), &puzzle)
+
+		if err != nil {
+			responses.ERROR(w, http.StatusInternalServerError, err)
+		}
+
+		responses.JSON(w, http.StatusOK, puzzle)
+
+	} else {
+
+		// Connect to db
+		db, err := database.DBService.Connect(config.DBDRIVER, config.DBURL)
+
+		if err != nil {
+			responses.ERROR(w, http.StatusInternalServerError, err)
+		}
+
+		defer db.Close()
+
+		repo := crud.PuzzlesCRUDService.NewPuzzlesCRUD(db)
+
+		puzzle, err := repo.FindByID(uint32(pid), uid)
+
+		if err != nil {
+			responses.ERROR(w, http.StatusBadRequest, err)
+		}
+
+		b, err := json.Marshal(puzzle)
+
+		if err != nil {
+			responses.ERROR(w, http.StatusInternalServerError, err)
+		}
+
+		// GOCACHE
+		caching.Cache.Set("puzzles/"+strconv.Itoa(int(pid)), b, cache.DefaultExpiration)
+
+		responses.JSON(w, http.StatusOK, puzzle)
 	}
-
-	defer db.Close()
-
-	repo := crud.PuzzlesCRUDService.NewPuzzlesCRUD(db)
-
-	puzzle, err := repo.FindByID(uint32(pid), uid)
-
-	if err != nil {
-		responses.ERROR(w, http.StatusBadRequest, err)
-	}
-
-	responses.JSON(w, http.StatusOK, puzzle)
 }
 
 // GetPuzzles fetches all puzzles
@@ -81,24 +107,47 @@ func GetPuzzles(w http.ResponseWriter, r *http.Request) {
 		responses.ERROR(w, http.StatusUnauthorized, err)
 	}
 
-	// Connect to db
-	db, err := database.DBService.Connect(config.DBDRIVER, config.DBURL)
+	if it, found := caching.Cache.Get("puzzles/all"); found {
 
-	if err != nil {
-		responses.ERROR(w, http.StatusInternalServerError, err)
+		var puzzles []models.Puzzle
+		err := json.Unmarshal(it.([]byte), &puzzles)
+
+		if err != nil {
+			responses.ERROR(w, http.StatusInternalServerError, err)
+		}
+
+		responses.JSON(w, http.StatusOK, puzzles)
+
+	} else {
+
+		// Connect to db
+		db, err := database.DBService.Connect(config.DBDRIVER, config.DBURL)
+
+		if err != nil {
+			responses.ERROR(w, http.StatusInternalServerError, err)
+		}
+
+		defer db.Close()
+
+		repo := crud.PuzzlesCRUDService.NewPuzzlesCRUD(db)
+
+		puzzles, err := repo.FindAll(uid)
+
+		if err != nil {
+			responses.ERROR(w, http.StatusBadRequest, err)
+		}
+
+		b, err := json.Marshal(puzzles)
+
+		if err != nil {
+			responses.ERROR(w, http.StatusInternalServerError, err)
+		}
+
+		// GOCACHE
+		caching.Cache.Set("puzzles/all", b, cache.DefaultExpiration)
+
+		responses.JSON(w, http.StatusOK, puzzles)
 	}
-
-	defer db.Close()
-
-	repo := crud.PuzzlesCRUDService.NewPuzzlesCRUD(db)
-
-	puzzles, err := repo.FindAll(uid)
-
-	if err != nil {
-		responses.ERROR(w, http.StatusBadRequest, err)
-	}
-
-	responses.JSON(w, http.StatusOK, puzzles)
 }
 
 // CreatePuzzle creates a puzzle in the Puzzle resource

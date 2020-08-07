@@ -9,7 +9,9 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
+	"github.com/patrickmn/go-cache"
 	"github.com/quattad/sudokubuddy-backend/src/api/auth"
+	"github.com/quattad/sudokubuddy-backend/src/api/caching"
 	"github.com/quattad/sudokubuddy-backend/src/api/config"
 	"github.com/quattad/sudokubuddy-backend/src/api/crud"
 	"github.com/quattad/sudokubuddy-backend/src/api/database"
@@ -44,105 +46,60 @@ func GetBoard(w http.ResponseWriter, r *http.Request) {
 		responses.ERROR(w, http.StatusUnauthorized, err)
 	}
 
-	// Connect to db
-	db, err := database.DBService.Connect(config.DBDRIVER, config.DBURL)
+	if it, found := caching.Cache.Get("boards/" + strconv.Itoa(int(boardID))); found {
 
-	if err != nil {
-		responses.ERROR(w, http.StatusInternalServerError, err)
+		board := models.Board{}
+
+		err = json.Unmarshal(it.([]byte), &board)
+
+		if err != nil {
+			responses.ERROR(w, http.StatusInternalServerError, err)
+		}
+
+		responses.JSON(w, http.StatusOK, board)
+
+	} else {
+
+		// Connect to db
+		db, err := database.DBService.Connect(config.DBDRIVER, config.DBURL)
+
+		if err != nil {
+			responses.ERROR(w, http.StatusInternalServerError, err)
+		}
+
+		defer db.Close()
+
+		repo := crud.BoardsCRUDService.NewBoardsCRUD(db)
+
+		board, err := repo.FindByID(uint32(boardID))
+
+		if err != nil {
+			responses.ERROR(w, http.StatusBadRequest, err)
+		}
+
+		// Search puzzles table with board.PuzzleID to retrieve corresponding puzzle and check
+		// retrieved puzzle.UserID with uid extracted from request body
+		// If no match, return 201
+		repoPuzzles := crud.PuzzlesCRUDService.NewPuzzlesCRUD(db)
+
+		puzzle, err := repoPuzzles.FindByID(board.PuzzleID, uid)
+
+		if puzzle.UserID != uid {
+			responses.ERROR(w, http.StatusUnauthorized, err)
+		}
+
+		b, err := json.Marshal(board)
+
+		if err != nil {
+			responses.ERROR(w, http.StatusInternalServerError, err)
+		}
+
+		// GOCACHE
+		caching.Cache.Set("boards/"+strconv.Itoa(int(boardID)), b, cache.DefaultExpiration)
+
+		responses.JSON(w, http.StatusOK, board)
 	}
 
-	defer db.Close()
-
-	repo := crud.BoardsCRUDService.NewBoardsCRUD(db)
-
-	board, err := repo.FindByID(uint32(boardID))
-
-	if err != nil {
-		responses.ERROR(w, http.StatusBadRequest, err)
-	}
-
-	// Search board.PuzzleID to retrieve corresponding puzzle and check
-	// retrieved puzzle.UserID with uid extracted from request body
-	// If no match, return 201
-	repoPuzzles := crud.PuzzlesCRUDService.NewPuzzlesCRUD(db)
-
-	puzzle, err := repoPuzzles.FindByID(board.PuzzleID, uid)
-
-	if puzzle.UserID != uid {
-		responses.ERROR(w, http.StatusUnauthorized, err)
-	}
-
-	responses.JSON(w, http.StatusOK, board)
-}
-
-// GetBoardsByPuzzleIDRowCol fetches boards by puzzleID, row and column
-func GetBoardsByPuzzleIDRowCol(w http.ResponseWriter, r *http.Request) {
-	/*
-		1. Extract puzzleID, row and col from route variables using mux.Vars() and convert to uint32, return status code 400 if err
-		2. Get uid (userID) from request, if not authorized, return status code 201
-		3. Connect to the DB, return status code 500 if err
-		4. Create a new pointer to *BoardsCRUD, return status code 500 if err
-		5. Execute FindByID, return status code 400 if err.
-		6. Fetch board, get corresponding puzzle with board.PuzzleID, check puzzle.UserID == uid, if not match return status code 201
-		6. Return status 200 and retrieved board if successful
-	*/
-
-	// Extract ID from route variables
-	routeVariables := mux.Vars(r)
-	puzzleID, err := strconv.ParseUint(routeVariables["puzzle_id"], 10, 32)
-
-	if err != nil {
-		responses.ERROR(w, http.StatusBadRequest, err)
-	}
-
-	boardRow, err := strconv.ParseUint(routeVariables["board_row"], 10, 32)
-
-	if err != nil {
-		responses.ERROR(w, http.StatusBadRequest, err)
-	}
-
-	boardCol, err := strconv.ParseUint(routeVariables["board_col"], 10, 32)
-
-	if err != nil {
-		responses.ERROR(w, http.StatusBadRequest, err)
-	}
-
-	// Fetch user ID from request body
-	uid, err := auth.TokenService.ExtractTokenID(r)
-
-	if err != nil {
-		responses.ERROR(w, http.StatusUnauthorized, err)
-	}
-
-	// Connect to db
-	db, err := database.DBService.Connect(config.DBDRIVER, config.DBURL)
-
-	if err != nil {
-		responses.ERROR(w, http.StatusInternalServerError, err)
-	}
-
-	defer db.Close()
-
-	repo := crud.BoardsCRUDService.NewBoardsCRUD(db)
-
-	board, err := repo.FindByPuzzleIDRowCol(uint32(puzzleID), int(boardRow), int(boardCol))
-
-	if err != nil {
-		responses.ERROR(w, http.StatusBadRequest, err)
-	}
-
-	// Search board.PuzzleID to retrieve corresponding puzzle and check
-	// retrieved puzzle.UserID with uid extracted from request body
-	// If no match, return 201
-	repoPuzzles := crud.PuzzlesCRUDService.NewPuzzlesCRUD(db)
-
-	puzzle, err := repoPuzzles.FindByID(board.PuzzleID, uid)
-
-	if puzzle.UserID != uid {
-		responses.ERROR(w, http.StatusUnauthorized, err)
-	}
-
-	responses.JSON(w, http.StatusOK, board)
 }
 
 // GetBoards fetches all boards
@@ -163,23 +120,136 @@ func GetBoards(w http.ResponseWriter, r *http.Request) {
 		responses.ERROR(w, http.StatusUnauthorized, err)
 	}
 
-	// Connect to db
-	db, err := database.DBService.Connect(config.DBDRIVER, config.DBURL)
-
-	if err != nil {
-		responses.ERROR(w, http.StatusInternalServerError, err)
-	}
-
-	defer db.Close()
-
-	repo := crud.BoardsCRUDService.NewBoardsCRUD(db)
-	boards, err := repo.FindAll(uid)
+	// Extract ID from route variables
+	values, err := url.ParseQuery(r.URL.RawQuery)
 
 	if err != nil {
 		responses.ERROR(w, http.StatusBadRequest, err)
 	}
 
-	responses.JSON(w, http.StatusOK, boards)
+	if values.Get("puzzle_id") != "" && values.Get("board_row") != "" && values.Get("board_col") != "" {
+
+		if err != nil {
+			responses.ERROR(w, http.StatusBadRequest, err)
+		}
+
+		puzzleID, err := strconv.Atoi(values.Get("puzzle_id"))
+
+		if err != nil {
+			responses.ERROR(w, http.StatusBadRequest, err)
+		}
+
+		boardRow, err := strconv.Atoi(values.Get("board_row"))
+
+		if err != nil {
+			responses.ERROR(w, http.StatusBadRequest, err)
+		}
+
+		boardCol, err := strconv.Atoi(values.Get("board_col"))
+
+		if err != nil {
+			responses.ERROR(w, http.StatusBadRequest, err)
+		}
+
+		var cacheString = "boards/" + strconv.Itoa(puzzleID) + strconv.Itoa(boardRow) + strconv.Itoa(boardCol)
+
+		if it, found := caching.Cache.Get(cacheString); found {
+
+			var board models.Board
+			err := json.Unmarshal(it.([]byte), &board)
+
+			if err != nil {
+				responses.ERROR(w, http.StatusInternalServerError, err)
+			}
+
+			responses.JSON(w, http.StatusOK, board)
+
+		} else {
+
+			// Connect to db
+			db, err := database.DBService.Connect(config.DBDRIVER, config.DBURL)
+
+			if err != nil {
+				responses.ERROR(w, http.StatusInternalServerError, err)
+			}
+
+			defer db.Close()
+
+			repo := crud.BoardsCRUDService.NewBoardsCRUD(db)
+
+			board, err := repo.FindByPuzzleIDRowCol(uint32(puzzleID), int(boardRow), int(boardCol))
+
+			if err != nil {
+				responses.ERROR(w, http.StatusBadRequest, err)
+			}
+
+			// Search board.PuzzleID to retrieve corresponding puzzle and check
+			// retrieved puzzle.UserID with uid extracted from request body
+			// If no match, return 201
+			repoPuzzles := crud.PuzzlesCRUDService.NewPuzzlesCRUD(db)
+
+			puzzle, err := repoPuzzles.FindByID(board.PuzzleID, uid)
+
+			if puzzle.UserID != uid {
+				responses.ERROR(w, http.StatusUnauthorized, err)
+			}
+
+			b, err := json.Marshal(board)
+
+			if err != nil {
+				responses.ERROR(w, http.StatusInternalServerError, err)
+			}
+
+			// GOCACHE
+			caching.Cache.Set(cacheString, b, cache.DefaultExpiration)
+
+			responses.JSON(w, http.StatusOK, board)
+		}
+
+	} else {
+
+		if it, found := caching.Cache.Get("boards/all"); found {
+
+			var boards []models.Board
+			err := json.Unmarshal(it.([]byte), &boards)
+
+			if err != nil {
+				responses.ERROR(w, http.StatusInternalServerError, err)
+			}
+
+			responses.JSON(w, http.StatusOK, boards)
+
+		} else {
+
+			// Connect to db
+			db, err := database.DBService.Connect(config.DBDRIVER, config.DBURL)
+
+			if err != nil {
+				responses.ERROR(w, http.StatusInternalServerError, err)
+			}
+
+			defer db.Close()
+
+			repo := crud.BoardsCRUDService.NewBoardsCRUD(db)
+
+			boards, err := repo.FindAll(uid)
+
+			if err != nil {
+				responses.ERROR(w, http.StatusBadRequest, err)
+			}
+
+			b, err := json.Marshal(boards)
+
+			if err != nil {
+				responses.ERROR(w, http.StatusInternalServerError, err)
+			}
+
+			// GOCACHE
+			caching.Cache.Set("boards/all", b, cache.DefaultExpiration)
+
+			responses.JSON(w, http.StatusOK, boards)
+		}
+	}
 }
 
 // CreateBoard creates a board in the Board resource
