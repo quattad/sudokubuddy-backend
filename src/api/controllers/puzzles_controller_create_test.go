@@ -238,7 +238,7 @@ func TestCreatePuzzleIfDBCannotConnect(t *testing.T) {
 
 	// Define custom functions
 	mockConnect = func(DBDRIVER, DBURL string) (*gorm.DB, error) {
-		return nil, expectedErr
+		return s.DB, expectedErr
 	}
 
 	mockExtractTokenID = func(r *http.Request) (uint32, error) {

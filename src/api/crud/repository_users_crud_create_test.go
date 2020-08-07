@@ -15,11 +15,11 @@ import (
 )
 
 func TestSaveIfSaveSuccessful(t *testing.T) {
-	t.Fatal("Resolve checking hash match")
-
 	s := tests.CreateSuite()
+
 	expectedCreatedAt := time.Now()
 	expectedUpdatedAt := time.Now()
+	testPassword := "123456"
 
 	// Populate DB and define expected response
 	data := []models.User{
@@ -28,20 +28,21 @@ func TestSaveIfSaveSuccessful(t *testing.T) {
 			Email:     "johndoe@gmail.com",
 			FirstName: "John",
 			LastName:  "Doe",
-			Password:  "123456",
+			Password:  testPassword,
 			CreatedAt: expectedCreatedAt,
 			UpdatedAt: expectedUpdatedAt,
 		},
 	}
 
-	generatedHash, err := security.SecurityService.Hash(data[0].Password)
+	// generatedHash, err := security.SecurityService.Hash(testPassword)
 
-	if err != nil {
-		t.Errorf("Error: %s while hashing test password.", generatedHash)
-	}
+	// if err != nil {
+	// 	t.Errorf("Error: %s while hashing test password.", generatedHash)
+	// }
 
-	generatedHashString := string(generatedHash)
+	// generatedHashString := string(generatedHash)
 
+	// Generate data for everything but password
 	expectedData := []models.User{
 		models.User{
 			ID:        1,
@@ -49,7 +50,6 @@ func TestSaveIfSaveSuccessful(t *testing.T) {
 			Email:     "johndoe@gmail.com",
 			FirstName: "John",
 			LastName:  "Doe",
-			Password:  generatedHashString,
 			CreatedAt: expectedCreatedAt,
 			UpdatedAt: expectedUpdatedAt,
 		},
@@ -73,13 +73,24 @@ func TestSaveIfSaveSuccessful(t *testing.T) {
 	// Execute function to be tested
 	// Cannot use UsersCRUDService here as it is a UserCRUDInterface instance which does not have 'db' field
 	repo := UsersCRUDService.NewUsersCRUD(s.DB)
-	post, err := repo.Save(data[0])
+	user, err := repo.Save(data[0])
+
+	// Create a new user with everything but password
+	extractedUser := models.User{
+		ID:        user.ID,
+		Username:  user.Username,
+		Email:     user.Email,
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
+	}
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	actual, err := json.Marshal(post)
+	actual, err := json.Marshal(extractedUser)
 
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when marshaling expected json data", err)
@@ -90,6 +101,11 @@ func TestSaveIfSaveSuccessful(t *testing.T) {
 	// Check status code and body
 	if !utils.JSONEqual(expectedDataReader, actualDataReader) {
 		t.Errorf("Actual: %s, expected:%s, expected equal", actual, expected)
+	}
+
+	// Compare passwords
+	if err := security.SecurityService.VerifyPassword(user.Password, testPassword); err != nil {
+		t.Errorf("Passwords are not equal")
 	}
 
 	// ensure all expectations have been met

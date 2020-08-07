@@ -2,6 +2,7 @@ package auth
 
 import (
 	"errors"
+	"fmt"
 	"regexp"
 	"testing"
 
@@ -50,7 +51,7 @@ func TestSignInIfCorrectEmailAndPassword(t *testing.T) {
 }
 
 func TestSignInIfDatabaseConnectionFailure(t *testing.T) {
-	// s := tests.CreateSuite()
+	s := tests.CreateSuite()
 
 	testEmail := "testuser@gmail.com"
 	testPassword := "testpassword"
@@ -59,7 +60,7 @@ func TestSignInIfDatabaseConnectionFailure(t *testing.T) {
 	// define mock functions
 	mockConnect = func(DBDRIVER, DBURL string) (*gorm.DB, error) {
 		// fmt.Println("Execute mockConnect, returning no db with error")
-		return nil, testError
+		return s.DB, testError
 	}
 
 	mockVerifyPassword = func(inputPassword, actualPassword string) error {
@@ -74,6 +75,11 @@ func TestSignInIfDatabaseConnectionFailure(t *testing.T) {
 
 	if err == nil {
 		t.Errorf("No error, expected error:%v", testError)
+	}
+
+	// ensure all expectations have been met
+	if err = s.Mock.ExpectationsWereMet(); err != nil {
+		fmt.Printf("unmet expectation error: %s", err)
 	}
 }
 
