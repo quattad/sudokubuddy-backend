@@ -15,23 +15,23 @@ ENV ENV_CONFIG=development
 
 ## Configure environment variables
 # DEVELOPMENT
-ENV API_BASE_URL=http://localhost:8080
-ENV PORT=8080
-ENV DB_DRIVER=mysql
-ENV DB_USER=root
-ENV DB_PASSWORD=Zenosparadox666!
-ENV DB_NAME=tcp(192.168.1.99:3306)/sudokubuddy
-ENV API_SECRET=WhHYReR5BzKkmUeoc5gIZOTmXNjLivlZ
-ENV ROOT_URL=github.com/quattad/sudokubuddy-backend
-
-# PRODUCTION
+# ENV API_BASE_URL=http://localhost:8080
 # ENV PORT=8080
 # ENV DB_DRIVER=mysql
 # ENV DB_USER=root
 # ENV DB_PASSWORD=Zenosparadox666!
-# ENV DB_NAME=tcp(sudokubuddy-db.cspmexpcmnes.us-east-2.rds.amazonaws.com:3306)/sudokubuddy
+# ENV DB_NAME=tcp(192.168.1.99:3306)/sudokubuddy
 # ENV API_SECRET=WhHYReR5BzKkmUeoc5gIZOTmXNjLivlZ
 # ENV ROOT_URL=github.com/quattad/sudokubuddy-backend
+
+# PRODUCTION
+ENV PORT=8080
+ENV DB_DRIVER=mysql
+ENV DB_USER=root
+ENV DB_PASSWORD=Zenosparadox666!
+ENV DB_NAME=tcp(sudokubuddy-db.cspmexpcmnes.us-east-2.rds.amazonaws.com:3306)/sudokubuddy
+ENV API_SECRET=WhHYReR5BzKkmUeoc5gIZOTmXNjLivlZ
+ENV ROOT_URL=github.com/quattad/sudokubuddy-backend
 
 ## Add maintainer info
 LABEL maintainer="Jonathan Quah <quahjieren@gmail.com>"
