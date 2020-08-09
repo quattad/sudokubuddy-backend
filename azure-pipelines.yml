@@ -6,16 +6,21 @@
 trigger:
 - master
 
-pool:
-  vmImage: 'Ubuntu-16.04'
-
 variables:
   imageName: 'sudokubuddy-backend'
 
-steps:
-- task: Docker@2
-  displayName: Build an image
-  inputs:
-    repository: $(imageName)
-    command: build
-    Dockerfile: Dockerfile
+- stage: Build
+  displayName: Build and push stage
+  jobs:
+  - job: Build
+  displayName: Build Job
+  pool:
+    vmImage: 'Ubuntu-16.04'
+  steps:
+  - task: Docker@2
+    displayName: Build an image and push to container registry
+    inputs:
+      command: buildAndPush
+      repository: $(imageRepository)
+      Dockerfile: $(dockerfilePath)
+      containerRegistry: $(dockerRegistryServiceConnection)
