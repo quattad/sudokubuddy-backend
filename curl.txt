@@ -1,0 +1,17 @@
+# Login using credentials stored in login.json
+# Provide email and password fields, successful authentication will store payload in TOKEN variable
+$TOKEN = curl -v `
+-d "@login.json" `
+-H 'Accept:application/json' `
+-H 'Content-Type: application/json' `
+-X POST http://localhost:8080/login
+
+# Access resource using bearer token
+# Note that GET requests are inferred
+curl -v `
+-H "Authorization: Bearer $TOKEN" `
+http://localhost:8080/boards
+
+curl -v `
+-H "Authorization: Bearer $TOKEN" `
+http://localhost:8080/puzzles
